@@ -31,6 +31,27 @@ function Section({ id, title, moreLabel, items, onSelect }: { id: string; title:
   );
 }
 
+function PhotoGallery({ items, onSelect }: { items: ContentItem[]; onSelect: (item: ContentItem) => void }) {
+  if (!items.length) return null;
+  return (
+    <section className="photo-gallery" id="gallery">
+      <header className="section-header blue">
+        <h2>❯ 포럼 행사 사진</h2>
+      </header>
+      <ul className="gallery-grid">
+        {items.slice(0, 12).map((item) => (
+          <li key={item.id}>
+            <button type="button" onClick={() => onSelect(item)} title={item.title}>
+              <img src={item.imageUrl} alt={item.title} loading="lazy" onError={(e) => { (e.currentTarget.closest("li") as HTMLElement).style.display = "none"; }} />
+              <span className="gallery-caption">{item.title.replace(/^포럼 행사 사진 /, "")}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function EventFeature({ item, onSelect }: { item?: ContentItem; onSelect: (item: ContentItem) => void }) {
   if (!item) return <div className="event-empty">등록된 행사가 없습니다.</div>;
   return (
@@ -172,7 +193,7 @@ function PublicSite() {
       api.site(),
       api.content("notice", 12),
       api.content("event", 12),
-      api.content("resource", 12),
+      api.content("resource", 40),
       api.content("member", 12),
     ]).then(([nextSettings, notice, event, resource, member]) => {
       setSettings(nextSettings);
@@ -187,6 +208,7 @@ function PublicSite() {
     event: content.filter((item) => item.type === "event"),
     resource: content.filter((item) => item.type === "resource"),
     member: content.filter((item) => item.type === "member"),
+    gallery: content.filter((item) => item.type === "resource" && item.imageUrl && item.imageUrl.includes("/uploads/gallery/")),
   }), [content]);
 
   const style = {
@@ -262,6 +284,7 @@ function PublicSite() {
               <Section id="resources" title={settings.resourceSectionTitle} moreLabel={settings.moreLabel} items={grouped.resource} onSelect={setSelected} />
               <Section id="news" title={settings.memberSectionTitle} moreLabel={settings.moreLabel} items={grouped.member} onSelect={setSelected} />
             </div>
+            <PhotoGallery items={grouped.gallery} onSelect={setSelected} />
           </div>
         </div>
       </main>
