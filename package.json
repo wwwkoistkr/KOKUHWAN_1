@@ -1,0 +1,33 @@
+{
+  "name": "itfu-community-portal",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "check": "tsc -b --pretty false",
+    "cf:types": "wrangler types",
+    "db:local": "wrangler d1 migrations apply itfu-cms --local",
+    "db:remote": "wrangler d1 migrations apply itfu-cms --remote",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.13.14",
+    "@cloudflare/workers-types": "^5.20260722.1",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^5.0.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12",
+    "wrangler": "^4.38.0"
+  },
+  "overrides": {
+    "sharp": "^0.35.0"
+  }
+}
