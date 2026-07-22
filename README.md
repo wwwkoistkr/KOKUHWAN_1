@@ -18,6 +18,15 @@
 - 배너·로고 로딩 실패 시에도 레이아웃이 무너지지 않는 안정성 보완
 - 관리자 작업 감사 로그와 동일 출처 요청 검사
 
+## 배포 정보 (LIVE)
+
+- **공개 홈페이지**: https://itfu-community-portal.wwwkoistkr.workers.dev
+- **관리자 모드**: https://itfu-community-portal.wwwkoistkr.workers.dev/admin
+- **Cloudflare 계정**: wwwkoistkr@gmail.com
+- **D1 데이터베이스**: `itfu-cms` (id: `3a8b35b8-f4a5-415b-832b-6ab47225de04`)
+- **R2 버킷**: `itfu-media`
+- **관리자 계정**: 아이디 `admin` / 비밀번호 `admin1234` (최초 설정 완료)
+
 ## 이번 개선 내역 (2026-07-22)
 
 1. 관리자 로그인/최초설정을 **아이디 겸용**으로 확장 (`migrations/0002_admin_username.sql`).
@@ -29,6 +38,13 @@
 4. **가독성/접근성**: 지나치게 작은 글자(8~10px)를 11~14px로 상향, 모바일 메뉴·버튼 터치 영역 확대,
    `prefers-reduced-motion` 대응.
 5. **안정성**: 배너 배경 색상 fallback, 로고·상세 이미지 `onError` 처리, 설정 텍스트 길이 제한.
+6. **원본 사이트 전체 게시물 크롤링 (`migrations/0003_crawled_content.sql`)** — 원본 `itfu.kr`
+   (실 콘텐츠 `kani.sewoncnc.co.kr`, EUC-KR)의 4개 게시판 전 페이지를 수집해 총 **381건** 적재.
+   - 공지사항 103건 / 자료실 92건 / 회원동정 57건 / 포럼행사 129건
+   - 각 항목 제목·등록일·작성자·첨부파일명·본문 추출, 최신순 정렬, 등록일 보존
+   - 모든 크롤 데이터는 관리자 "콘텐츠" 탭에서 수정·삭제·편집·공개전환 가능
+7. **PBKDF2 반복 횟수 100,000회** — Cloudflare Workers 런타임 제한(최대 100,000회) 준수.
+   OWASP 권장 최소치와 동일한 수준으로 보안상 충분합니다.
 
 ## 기술 구성
 
@@ -53,41 +69,27 @@ npm run dev
 
 처음 `/admin`에 들어가면 첫 관리자 계정을 직접 설정합니다. 아이디(예: `admin`)나 이메일 중 원하는 방식으로 만들 수 있으며, 소스 코드에는 기본 관리자 비밀번호가 없습니다. 계정 생성 후에는 `보안 설정` 탭에서 언제든 비밀번호를 변경할 수 있습니다.
 
-## Cloudflare 배포 준비
+## Cloudflare 재배포 (이미 배포 완료됨)
 
-1. Cloudflare 로그인
+D1/R2 리소스와 `database_id`는 이미 생성·연결되어 있습니다. 코드 변경 후 재배포는 아래 순서로 진행합니다.
 
-   ```powershell
-   npx wrangler login
-   ```
+```bash
+npm run build
+# @cloudflare/vite-plugin 이 생성한 설정으로 배포 (assets.directory 포함)
+npx wrangler deploy -c dist/itfu_community_portal/wrangler.json
+```
 
-2. D1 데이터베이스 생성
+> ⚠️ 루트의 `wrangler.jsonc` 로 직접 `wrangler deploy` 하면 `assets.directory` 누락 오류가 납니다.
+> 반드시 빌드 후 생성되는 `dist/itfu_community_portal/wrangler.json` 을 `-c` 로 지정하세요.
 
-   ```powershell
-   npx wrangler d1 create itfu-cms
-   ```
+새 마이그레이션을 추가한 경우:
 
-3. 출력된 `database_id`를 `wrangler.jsonc`의 `d1_databases[0].database_id`에 입력
+```bash
+npm run db:remote   # 원격 D1(itfu-cms)에 마이그레이션 적용
+```
 
-4. R2 버킷 생성
-
-   ```powershell
-   npx wrangler r2 bucket create itfu-media
-   ```
-
-5. 원격 데이터베이스 구성
-
-   ```powershell
-   npm run db:remote
-   ```
-
-6. 배포
-
-   ```powershell
-   npm run deploy
-   ```
-
-7. Cloudflare 대시보드에서 사용자 도메인을 Worker에 연결하고 HTTPS 동작 확인
+도메인 연결: Cloudflare 대시보드 → Workers & Pages → itfu-community-portal → Custom Domains 에서
+사용자 도메인을 연결하면 됩니다.
 
 ## GitHub Actions를 통한 수동 배포
 
