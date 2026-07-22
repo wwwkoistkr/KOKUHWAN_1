@@ -168,9 +168,16 @@ function PublicSite() {
   const [logoFailed, setLogoFailed] = useState(false);
 
   useEffect(() => {
-    Promise.all([api.site(), api.content()]).then(([nextSettings, nextContent]) => {
+    Promise.all([
+      api.site(),
+      api.content("notice", 12),
+      api.content("event", 12),
+      api.content("resource", 12),
+      api.content("member", 12),
+    ]).then(([nextSettings, notice, event, resource, member]) => {
       setSettings(nextSettings);
-      setContent(nextContent);
+      const merged = [...notice, ...event, ...resource, ...member];
+      setContent(merged.length ? merged : fallbackContent);
       setLogoFailed(false);
     });
   }, []);

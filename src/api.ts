@@ -14,8 +14,9 @@ export const api = {
   async site(): Promise<SiteSettings> {
     try { return await request<SiteSettings>("/api/site"); } catch { return defaultSettings; }
   },
-  async content(): Promise<ContentItem[]> {
-    try { return await request<ContentItem[]>("/api/content?limit=100"); } catch { return fallbackContent; }
+  async content(type?: string, limit = 100): Promise<ContentItem[]> {
+    const query = type ? `?type=${encodeURIComponent(type)}&limit=${limit}` : `?limit=${limit}`;
+    try { return await request<ContentItem[]>(`/api/content${query}`); } catch { return type ? [] : fallbackContent; }
   },
   memberSession: () => request<{ principal: { id: number; username: string; name: string } | null }>("/api/member/session"),
   memberLogin: (username: string, password: string) => request<{ principal: { id: number; username: string; name: string } }>("/api/member/login", { method: "POST", body: JSON.stringify({ username, password }) }),
