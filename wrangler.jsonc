@@ -13,7 +13,7 @@
     {
       "binding": "DB",
       "database_name": "itfu-cms",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "3a8b35b8-f4a5-415b-832b-6ab47225de04",
       "migrations_dir": "migrations"
     }
   ],

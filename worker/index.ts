@@ -35,7 +35,9 @@ interface ContentRow {
 }
 
 const CONTENT_TYPES: ContentType[] = ["notice", "event", "resource", "member"];
-const PASSWORD_ITERATIONS = 210_000;
+// Cloudflare Workers 런타임은 PBKDF2 반복 횟수를 최대 100,000회로 제한합니다.
+// (OWASP 권장 최소치와 동일한 수준으로, 보안상 충분히 강력합니다.)
+const PASSWORD_ITERATIONS = 100_000;
 const ADMIN_SESSION_SECONDS = 60 * 60 * 8;
 const MEMBER_SESSION_SECONDS = 60 * 60 * 24 * 14;
 
