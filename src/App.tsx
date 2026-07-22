@@ -9,12 +9,12 @@ function formatDate(value: string) {
   return value.slice(0, 10).replaceAll("-", ".");
 }
 
-function Section({ id, title, items, onSelect }: { id: string; title: string; items: ContentItem[]; onSelect: (item: ContentItem) => void }) {
+function Section({ id, title, moreLabel, items, onSelect }: { id: string; title: string; moreLabel: string; items: ContentItem[]; onSelect: (item: ContentItem) => void }) {
   return (
     <section className="content-section" id={id}>
       <header className="section-header">
         <h2>{title}</h2>
-        <span>·· MORE</span>
+        <span>{moreLabel}</span>
       </header>
       <ul className="post-list">
         {items.slice(0, 6).map((item) => (
@@ -50,7 +50,7 @@ function EventFeature({ item, onSelect }: { item?: ContentItem; onSelect: (item:
   );
 }
 
-function MemberBox({ onJoin }: { onJoin: () => void }) {
+function MemberBox({ settings, onJoin }: { settings: SiteSettings; onJoin: () => void }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [principal, setPrincipal] = useState<{ name: string } | null>(null);
@@ -75,7 +75,7 @@ function MemberBox({ onJoin }: { onJoin: () => void }) {
 
   return (
     <section className="member-login" aria-label="회원 로그인">
-      <h2>MEMBER <b>LOGIN</b></h2>
+      <h2>{settings.loginBoxTitle}</h2>
       {principal ? (
         <div className="member-welcome">
           <strong>{principal.name}님</strong>
@@ -93,8 +93,8 @@ function MemberBox({ onJoin }: { onJoin: () => void }) {
           </div>
           {message && <p className="form-message error">{message}</p>}
           <div className="login-links">
-            <button type="button" onClick={onJoin}>e-멤버스 회원가입</button>
-            <span>아이디/비번찾기</span>
+            <button type="button" onClick={onJoin}>{settings.joinButtonLabel}</button>
+            <span>{settings.findAccountLabel}</span>
           </div>
         </form>
       )}
@@ -102,7 +102,7 @@ function MemberBox({ onJoin }: { onJoin: () => void }) {
   );
 }
 
-function JoinDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function JoinDialog({ open, title, onClose }: { open: boolean; title: string; onClose: () => void }) {
   const [form, setForm] = useState({ username: "", name: "", email: "", password: "" });
   const [message, setMessage] = useState("");
   if (!open) return null;
@@ -120,7 +120,7 @@ function JoinDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="dialog" role="dialog" aria-modal="true" aria-labelledby="join-title">
         <button className="dialog-close" type="button" onClick={onClose} aria-label="닫기">×</button>
-        <h2 id="join-title">e-멤버스 회원가입</h2>
+        <h2 id="join-title">{title}</h2>
         <p>포럼 회원 서비스를 이용할 계정을 만들어 주세요.</p>
         <form className="stack-form" onSubmit={submit}>
           <label>아이디<input required minLength={4} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></label>
@@ -135,16 +135,22 @@ function JoinDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   );
 }
 
-function DetailDialog({ item, onClose }: { item: ContentItem | null; onClose: () => void }) {
+function DetailDialog({ item, settings, onClose }: { item: ContentItem | null; settings: SiteSettings; onClose: () => void }) {
   if (!item) return null;
+  const typeLabels: Record<ContentType, string> = {
+    notice: settings.noticeSectionTitle,
+    event: settings.eventSectionTitle,
+    resource: settings.resourceSectionTitle,
+    member: settings.memberSectionTitle,
+  };
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <article className="dialog detail-dialog" role="dialog" aria-modal="true" aria-labelledby="detail-title">
         <button className="dialog-close" type="button" onClick={onClose} aria-label="닫기">×</button>
-        <span className="detail-type">{({ notice: "공지사항", event: "포럼행사", resource: "자료실", member: "회원동정" } as Record<ContentType, string>)[item.type]}</span>
+        <span className="detail-type">{typeLabels[item.type]}</span>
         <h2 id="detail-title">{item.title}</h2>
         <p className="detail-date">{formatDate(item.createdAt)}</p>
-        {item.imageUrl && <img src={item.imageUrl} alt="" />}
+        {item.imageUrl && <img src={item.imageUrl} alt="" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />}
         {item.summary && <p className="detail-summary">{item.summary}</p>}
         <div className="detail-body">{item.body}</div>
         {(item.eventDate || item.eventLocation) && <dl><dt>일시</dt><dd>{item.eventDate || "미정"}</dd><dt>장소</dt><dd>{item.eventLocation || "미정"}</dd></dl>}
@@ -159,11 +165,13 @@ function PublicSite() {
   const [content, setContent] = useState<ContentItem[]>(fallbackContent);
   const [selected, setSelected] = useState<ContentItem | null>(null);
   const [joinOpen, setJoinOpen] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
 
   useEffect(() => {
     Promise.all([api.site(), api.content()]).then(([nextSettings, nextContent]) => {
       setSettings(nextSettings);
       setContent(nextContent);
+      setLogoFailed(false);
     });
   }, []);
 
@@ -205,9 +213,11 @@ function PublicSite() {
       <header className="site-header">
         <div className="header-inner">
           <a className="brand" href="/" aria-label="홈">
-            {settings.logoImageUrl ? <img src={settings.logoImageUrl} alt={settings.organizationName} /> : <><strong>{settings.organizationName}</strong><span>{settings.organizationSubtitle}</span></>}
+            {settings.logoImageUrl && !logoFailed
+              ? <img src={settings.logoImageUrl} alt={settings.organizationName} onError={() => setLogoFailed(true)} />
+              : <><strong>{settings.organizationName}</strong><span>{settings.organizationSubtitle}</span></>}
           </a>
-          <nav className="utility-nav"><a href="/">HOME</a><i /> <a href="#sitemap">SITEMAP</a></nav>
+          <nav className="utility-nav"><a href="/">{settings.homeLabel}</a><i /> <a href="#sitemap">{settings.sitemapLabel}</a></nav>
           <nav className="main-nav" aria-label="주 메뉴">
             {settings.menus.map((menu) => <a key={`${menu.label}-${menu.href}`} href={menu.href}>{menu.label}</a>)}
           </nav>
@@ -215,33 +225,35 @@ function PublicSite() {
       </header>
 
       <main className="page-wrap">
-        <section className="hero" style={{ backgroundImage: `url(${settings.heroImageUrl || "/hero-itfu.svg"})` }}>
-          <span className="sr-only">{settings.heroSlogan}</span>
+        <section className="hero" style={{ backgroundImage: `url(${settings.heroImageUrl || "/hero-itfu.svg"})` }} role="img" aria-label={settings.heroSlogan}>
+          {settings.heroSlogan && (
+            <p className="hero-slogan">{settings.heroSlogan}</p>
+          )}
         </section>
 
         <div className="home-grid">
           <aside className="sidebar">
-            <MemberBox onJoin={() => setJoinOpen(true)} />
+            <MemberBox settings={settings} onJoin={() => setJoinOpen(true)} />
             <button className="membership-card" type="button" onClick={() => setJoinOpen(true)}>
-              <span className="membership-icon">✓</span>
+              <span className="membership-icon" aria-hidden="true">✓</span>
               <strong>{settings.membershipTitle}</strong>
               <small>{settings.membershipDescription}</small>
-              <span className="membership-tiles"><i>▥</i><i>▣</i><i>◆</i></span>
+              <span className="membership-tiles" aria-hidden="true"><i>▥</i><i>▣</i><i>◆</i></span>
             </button>
-            <section className="quick-card" id="links"><span aria-hidden="true">✚</span><strong>관련기관 바로가기</strong></section>
+            <section className="quick-card" id="links"><span aria-hidden="true">✚</span><strong>{settings.quickLinksTitle}</strong></section>
           </aside>
 
           <div className="main-content">
             <div className="top-content-grid">
-              <Section id="notice" title="공지사항" items={grouped.notice} onSelect={setSelected} />
+              <Section id="notice" title={settings.noticeSectionTitle} moreLabel={settings.moreLabel} items={grouped.notice} onSelect={setSelected} />
               <section className="content-section" id="events">
-                <header className="section-header blue"><h2>❯ 포럼행사</h2></header>
+                <header className="section-header blue"><h2>❯ {settings.eventSectionTitle}</h2></header>
                 <EventFeature item={grouped.event[0]} onSelect={setSelected} />
               </section>
             </div>
             <div className="bottom-content-grid">
-              <Section id="resources" title="자료실" items={grouped.resource} onSelect={setSelected} />
-              <Section id="news" title="회원동정" items={grouped.member} onSelect={setSelected} />
+              <Section id="resources" title={settings.resourceSectionTitle} moreLabel={settings.moreLabel} items={grouped.resource} onSelect={setSelected} />
+              <Section id="news" title={settings.memberSectionTitle} moreLabel={settings.moreLabel} items={grouped.member} onSelect={setSelected} />
             </div>
           </div>
         </div>
@@ -251,8 +263,8 @@ function PublicSite() {
         <div><strong>{settings.footerOrganization}</strong><p>{settings.footerAddress}</p><p>{settings.footerContact}</p><small>{settings.footerCopyright}</small></div>
         <a href="/admin">관리자</a>
       </footer>
-      <JoinDialog open={joinOpen} onClose={() => setJoinOpen(false)} />
-      <DetailDialog item={selected} onClose={() => setSelected(null)} />
+      <JoinDialog open={joinOpen} title={settings.joinButtonLabel} onClose={() => setJoinOpen(false)} />
+      <DetailDialog item={selected} settings={settings} onClose={() => setSelected(null)} />
     </div>
   );
 }

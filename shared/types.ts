@@ -59,6 +59,20 @@ export interface SiteSettings {
   footerAddress: string;
   footerContact: string;
   footerCopyright: string;
+  // 섹션 제목 (홈페이지 4개 영역 이름)
+  noticeSectionTitle: string;
+  eventSectionTitle: string;
+  resourceSectionTitle: string;
+  memberSectionTitle: string;
+  // 사이드바 · 로그인 영역 문구
+  loginBoxTitle: string;
+  joinButtonLabel: string;
+  findAccountLabel: string;
+  quickLinksTitle: string;
+  moreLabel: string;
+  // 상단 유틸리티 문구
+  homeLabel: string;
+  sitemapLabel: string;
   menus: MenuItem[];
   theme: SiteTheme;
 }

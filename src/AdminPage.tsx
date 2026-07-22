@@ -15,7 +15,9 @@ function Field({ label, help, children }: { label: string; help?: string; childr
 }
 
 function AdminAuth({ setupRequired, onSuccess }: { setupRequired: boolean; onSuccess: () => void }) {
+  const [loginId, setLoginId] = useState("");
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("관리자");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -24,11 +26,14 @@ function AdminAuth({ setupRequired, onSuccess }: { setupRequired: boolean; onSuc
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (setupRequired && password !== confirmPassword) { setError("비밀번호 확인이 일치하지 않습니다."); return; }
+    if (setupRequired) {
+      if (!email.trim() && !username.trim()) { setError("이메일 또는 아이디 중 하나 이상을 입력해 주세요."); return; }
+      if (password !== confirmPassword) { setError("비밀번호 확인이 일치하지 않습니다."); return; }
+    }
     setBusy(true); setError("");
     try {
-      if (setupRequired) await api.adminSetup({ email, displayName, password });
-      else await api.adminLogin(email, password);
+      if (setupRequired) await api.adminSetup({ email: email.trim(), username: username.trim(), displayName, password });
+      else await api.adminLogin(loginId, password);
       onSuccess();
     } catch (caught) { setError(caught instanceof Error ? caught.message : "로그인하지 못했습니다."); }
     finally { setBusy(false); }
@@ -40,12 +45,22 @@ function AdminAuth({ setupRequired, onSuccess }: { setupRequired: boolean; onSuc
         <a className="admin-back" href="/">← 홈페이지</a>
         <div className="admin-auth-mark">ICT</div>
         <h1>{setupRequired ? "최초 관리자 설정" : "관리자 로그인"}</h1>
-        <p>{setupRequired ? "이 사이트를 관리할 첫 번째 계정을 만들어 주세요. 비밀번호는 소스 코드에 저장되지 않습니다." : "콘텐츠와 홈페이지 디자인을 관리합니다."}</p>
+        <p>{setupRequired ? "이 사이트를 관리할 첫 번째 계정을 만들어 주세요. 아이디와 이메일 중 원하는 방식으로 로그인할 수 있으며, 비밀번호는 소스 코드에 저장되지 않습니다." : "아이디 또는 이메일로 로그인합니다."}</p>
         <form className="stack-form" onSubmit={submit}>
-          {setupRequired && <Field label="관리자 이름"><input required value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></Field>}
-          <Field label="이메일"><input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" /></Field>
-          <Field label="비밀번호" help={setupRequired ? "10자 이상 입력해 주세요." : undefined}><input required type="password" minLength={setupRequired ? 10 : undefined} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={setupRequired ? "new-password" : "current-password"} /></Field>
-          {setupRequired && <Field label="비밀번호 확인"><input required type="password" minLength={10} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" /></Field>}
+          {setupRequired ? (
+            <>
+              <Field label="관리자 이름"><input required value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></Field>
+              <Field label="아이디" help="예: admin (영문 소문자·숫자 3~30자, 선택)"><input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" placeholder="admin" /></Field>
+              <Field label="이메일" help="아이디를 쓰지 않으려면 이메일만 입력해도 됩니다. (선택)"><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" placeholder="admin@itfu.kr" /></Field>
+              <Field label="비밀번호" help="8자 이상 입력해 주세요."><input required type="password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" /></Field>
+              <Field label="비밀번호 확인"><input required type="password" minLength={8} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" /></Field>
+            </>
+          ) : (
+            <>
+              <Field label="아이디 또는 이메일"><input required value={loginId} onChange={(e) => setLoginId(e.target.value)} autoComplete="username" placeholder="admin 또는 admin@itfu.kr" /></Field>
+              <Field label="비밀번호"><input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></Field>
+            </>
+          )}
           {error && <p className="admin-alert error">{error}</p>}
           <button className="admin-primary" type="submit" disabled={busy}>{busy ? "처리 중…" : setupRequired ? "관리 시작" : "로그인"}</button>
         </form>
@@ -150,6 +165,27 @@ function SitePanel({ settings, setSettings, onSave, busy }: { settings: SiteSett
       <Field label="메인 슬로건"><input value={settings.heroSlogan} onChange={(e) => set("heroSlogan", e.target.value)} /></Field>
       <UploadField label="로고 이미지" accept="image/*" value={settings.logoImageUrl} onChange={(value) => set("logoImageUrl", value)} />
       <UploadField label="메인 배너 이미지" accept="image/*" value={settings.heroImageUrl} onChange={(value) => set("heroImageUrl", value)} />
+      <h3 className="subsection-title">화면 영역 제목</h3>
+      <p className="subsection-help">홈페이지 각 영역의 제목을 바꿉니다. (예: 공지사항 → 알림마당)</p>
+      <div className="form-grid two">
+        <Field label="공지사항 영역 제목"><input value={settings.noticeSectionTitle} onChange={(e) => set("noticeSectionTitle", e.target.value)} /></Field>
+        <Field label="포럼행사 영역 제목"><input value={settings.eventSectionTitle} onChange={(e) => set("eventSectionTitle", e.target.value)} /></Field>
+        <Field label="자료실 영역 제목"><input value={settings.resourceSectionTitle} onChange={(e) => set("resourceSectionTitle", e.target.value)} /></Field>
+        <Field label="회원동정 영역 제목"><input value={settings.memberSectionTitle} onChange={(e) => set("memberSectionTitle", e.target.value)} /></Field>
+      </div>
+      <h3 className="subsection-title">로그인·사이드바 문구</h3>
+      <div className="form-grid two">
+        <Field label="로그인 상자 제목"><input value={settings.loginBoxTitle} onChange={(e) => set("loginBoxTitle", e.target.value)} /></Field>
+        <Field label="회원가입 버튼 문구"><input value={settings.joinButtonLabel} onChange={(e) => set("joinButtonLabel", e.target.value)} /></Field>
+        <Field label="아이디/비번찾기 문구"><input value={settings.findAccountLabel} onChange={(e) => set("findAccountLabel", e.target.value)} /></Field>
+        <Field label="관련기관 카드 제목"><input value={settings.quickLinksTitle} onChange={(e) => set("quickLinksTitle", e.target.value)} /></Field>
+      </div>
+      <h3 className="subsection-title">상단 안내 문구</h3>
+      <div className="form-grid two">
+        <Field label="HOME 문구"><input value={settings.homeLabel} onChange={(e) => set("homeLabel", e.target.value)} /></Field>
+        <Field label="SITEMAP 문구"><input value={settings.sitemapLabel} onChange={(e) => set("sitemapLabel", e.target.value)} /></Field>
+        <Field label="목록 'MORE' 문구"><input value={settings.moreLabel} onChange={(e) => set("moreLabel", e.target.value)} /></Field>
+      </div>
       <h3 className="subsection-title">상단 메뉴</h3>
       <div className="menu-editor">{settings.menus.map((menu, index) => <div key={index}><input aria-label={`메뉴 ${index + 1} 이름`} value={menu.label} onChange={(e) => { const menus = [...settings.menus]; menus[index] = { ...menu, label: e.target.value }; set("menus", menus); }} /><input aria-label={`메뉴 ${index + 1} 주소`} value={menu.href} onChange={(e) => { const menus = [...settings.menus]; menus[index] = { ...menu, href: e.target.value }; set("menus", menus); }} /><button type="button" onClick={() => set("menus", settings.menus.filter((_, i) => i !== index))}>삭제</button></div>)}</div>
       <button className="admin-secondary" type="button" onClick={() => set("menus", [...settings.menus, { label: "새 메뉴", href: "#new" }])}>+ 메뉴 추가</button>

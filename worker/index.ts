@@ -177,15 +177,28 @@ function cleanContent(input: Partial<ContentItem>) {
   };
 }
 
+// 긴 텍스트가 저장되어 화면이 깨지거나 저장 용량이 폭증하는 것을 막기 위한 길이 제한 필드 목록.
+const SHORT_TEXT_KEYS: Array<keyof SiteSettings> = [
+  "organizationName", "organizationSubtitle", "heroSlogan", "heroImageUrl", "logoImageUrl",
+  "membershipTitle", "membershipDescription", "footerOrganization", "footerAddress", "footerContact", "footerCopyright",
+  "noticeSectionTitle", "eventSectionTitle", "resourceSectionTitle", "memberSectionTitle",
+  "loginBoxTitle", "joinButtonLabel", "findAccountLabel", "quickLinksTitle", "moreLabel", "homeLabel", "sitemapLabel",
+];
+
 function mergeSettings(value: unknown): SiteSettings {
   if (!value || typeof value !== "object") return defaultSettings;
   const partial = value as Partial<SiteSettings>;
-  return {
+  const merged: SiteSettings = {
     ...defaultSettings,
     ...partial,
-    menus: Array.isArray(partial.menus) ? partial.menus.slice(0, 12).map((menu) => ({ label: String(menu.label).slice(0, 30), href: String(menu.href).slice(0, 300) })) : defaultSettings.menus,
+    menus: Array.isArray(partial.menus) ? partial.menus.slice(0, 12).map((menu) => ({ label: String(menu.label ?? "").slice(0, 30), href: String(menu.href ?? "").slice(0, 300) })) : defaultSettings.menus,
     theme: { ...defaultSettings.theme, ...(partial.theme ?? {}) },
   };
+  // 모든 짧은 텍스트 필드는 문자열로 강제하고 1000자로 제한합니다.
+  for (const key of SHORT_TEXT_KEYS) {
+    (merged[key] as string) = String(merged[key] ?? "").slice(0, 1000);
+  }
+  return merged;
 }
 
 async function getSettings(env: Env): Promise<SiteSettings> {
@@ -238,26 +251,39 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
   if (path === "/api/admin/setup" && request.method === "POST") {
     const count = await env.DB.prepare("SELECT COUNT(*) AS count FROM admins").first<{ count: number }>();
     if (count?.count) return error("관리자 계정이 이미 설정되어 있습니다.", 409);
-    const input = await readJson<{ email?: string; password?: string; displayName?: string }>(request);
+    const input = await readJson<{ email?: string; username?: string; password?: string; displayName?: string }>(request);
     const email = String(input.email ?? "").trim().toLowerCase();
+    const username = String(input.username ?? "").trim().toLowerCase();
     const password = String(input.password ?? "");
     const displayName = String(input.displayName ?? "관리자").trim().slice(0, 50) || "관리자";
-    if (!/^\S+@\S+\.\S+$/.test(email)) return error("올바른 이메일 주소를 입력해 주세요.");
-    if (password.length < 10) return error("관리자 비밀번호는 10자 이상이어야 합니다.");
+    // 이메일 또는 아이디 중 최소 하나는 반드시 입력해야 합니다.
+    if (!email && !username) return error("관리자 이메일 또는 아이디 중 하나 이상을 입력해 주세요.");
+    if (email && !/^\S+@\S+\.\S+$/.test(email)) return error("올바른 이메일 주소를 입력해 주세요.");
+    if (username && !/^[a-z0-9._-]{3,30}$/.test(username)) return error("아이디는 영문 소문자, 숫자, 점, 밑줄, 하이픈으로 3~30자여야 합니다.");
+    if (password.length < 8) return error("관리자 비밀번호는 8자 이상이어야 합니다.");
     const hashed = await hashPassword(password);
-    const inserted = await env.DB.prepare("INSERT INTO admins (email, display_name, password_hash, password_salt, password_iterations) VALUES (?, ?, ?, ?, ?)")
-      .bind(email, displayName, hashed.hash, hashed.salt, hashed.iterations).run();
+    // email 컬럼은 NOT NULL/UNIQUE 이므로, 이메일을 비운 경우 아이디 기반의 내부 placeholder 이메일을 저장합니다.
+    const emailValue = email || `${username}@admin.local`;
+    const usernameValue = username || null;
+    const inserted = await env.DB.prepare("INSERT INTO admins (email, username, display_name, password_hash, password_salt, password_iterations) VALUES (?, ?, ?, ?, ?, ?)")
+      .bind(emailValue, usernameValue, displayName, hashed.hash, hashed.salt, hashed.iterations).run();
     const session = await createSession(request, env, "admin", Number(inserted.meta.last_row_id));
-    return json({ ok: true, principal: { id: inserted.meta.last_row_id, email, name: displayName, type: "admin" } }, 201, session.headers);
+    return json({ ok: true, principal: { id: inserted.meta.last_row_id, email: emailValue, name: displayName, type: "admin" } }, 201, session.headers);
   }
 
   if (path === "/api/admin/login" && request.method === "POST") {
-    const input = await readJson<{ email?: string; password?: string }>(request);
-    const email = String(input.email ?? "").trim().toLowerCase();
-    const row = await env.DB.prepare("SELECT id, email, display_name, password_hash, password_salt, password_iterations FROM admins WHERE email = ?")
-      .bind(email).first<{ id: number; email: string; display_name: string; password_hash: string; password_salt: string; password_iterations: number }>();
+    // loginId 는 이메일 또는 아이디 모두 허용합니다. (구버전 클라이언트 호환을 위해 email 필드도 함께 확인)
+    const input = await readJson<{ loginId?: string; email?: string; password?: string }>(request);
+    const loginId = String(input.loginId ?? input.email ?? "").trim().toLowerCase();
+    if (!loginId) return error("아이디 또는 이메일을 입력해 주세요.");
+    const isEmail = /^\S+@\S+\.\S+$/.test(loginId);
+    const row = isEmail
+      ? await env.DB.prepare("SELECT id, email, username, display_name, password_hash, password_salt, password_iterations FROM admins WHERE email = ?")
+          .bind(loginId).first<{ id: number; email: string; username: string | null; display_name: string; password_hash: string; password_salt: string; password_iterations: number }>()
+      : await env.DB.prepare("SELECT id, email, username, display_name, password_hash, password_salt, password_iterations FROM admins WHERE username = ?")
+          .bind(loginId).first<{ id: number; email: string; username: string | null; display_name: string; password_hash: string; password_salt: string; password_iterations: number }>();
     if (!row || !(await verifyPassword(String(input.password ?? ""), row.password_hash, row.password_salt, row.password_iterations))) {
-      return error("이메일 또는 비밀번호가 올바르지 않습니다.", 401);
+      return error("아이디(또는 이메일) 또는 비밀번호가 올바르지 않습니다.", 401);
     }
     const session = await createSession(request, env, "admin", row.id);
     return json({ ok: true, principal: { id: row.id, email: row.email, name: row.display_name, type: "admin" } }, 200, session.headers);
