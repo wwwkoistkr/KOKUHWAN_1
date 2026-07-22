@@ -99,10 +99,15 @@ button { cursor: pointer; }
 .event-copy strong { display: -webkit-box; overflow: hidden; color: var(--text); font-size: 13px; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .event-copy p { display: -webkit-box; overflow: hidden; margin: 8px 0; color: var(--muted); font-size: 12px; line-height: 1.55; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .event-copy small { display: block; overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.site-footer { display: flex; align-items: flex-end; justify-content: space-between; width: min(var(--content-width), calc(100% - 28px)); margin: 30px auto 0; padding: 20px 0 34px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; line-height: 1.6; }
-.site-footer strong { color: var(--text); }.site-footer p { margin: 3px 0; }
-.site-footer a { display: inline-block; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-size: 12px; text-decoration: none; }
-.site-footer a:hover { border-color: var(--accent); color: var(--accent); }
+.site-footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; width: min(var(--content-width), calc(100% - 28px)); margin: 34px auto 0; padding: 22px 26px 24px; border-top: 3px solid var(--accent); border-radius: 6px 6px 0 0; background: linear-gradient(#f3f7f9, #e9eff2); color: #3a464d; font-size: 13px; line-height: 1.7; }
+.footer-info { flex: 1; min-width: 0; }
+.site-footer .footer-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 2px 0; color: #3a464d; }
+.site-footer strong { color: var(--accent); font-size: 14px; font-weight: 700; }
+.site-footer .footer-sep { color: #9aa7ad; font-weight: 400; }
+.site-footer .footer-contact { color: #46535a; }
+.site-footer .footer-copyright { display: block; margin-top: 8px; color: #6a767c; font-size: 12px; }
+.site-footer .footer-admin-link { flex-shrink: 0; align-self: center; display: inline-block; padding: 8px 16px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: #46535a; font-size: 13px; text-decoration: none; }
+.site-footer .footer-admin-link:hover { border-color: var(--accent); color: var(--accent); }
 .modal-backdrop { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(9, 26, 38, .62); backdrop-filter: blur(3px); }
 .dialog { position: relative; width: min(480px, 100%); max-height: calc(100vh - 40px); overflow: auto; padding: 30px; border-radius: 14px; color: #34434d; background: #fff; box-shadow: 0 20px 70px rgba(0,0,0,.3); }
 .dialog h2 { margin: 4px 0 8px; color: #164e78; }.dialog > p { color: #74818a; }

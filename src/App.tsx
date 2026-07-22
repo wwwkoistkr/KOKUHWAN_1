@@ -260,8 +260,15 @@ function PublicSite() {
       </main>
 
       <footer className="site-footer" id="sitemap">
-        <div><strong>{settings.footerOrganization}</strong><p>{settings.footerAddress}</p><p>{settings.footerContact}</p><small>{settings.footerCopyright}</small></div>
-        <a href="/admin">관리자</a>
+        <div className="footer-info">
+          <p className="footer-line">
+            <strong>{settings.footerOrganization}</strong>
+            {settings.footerAddress ? <><span className="footer-sep">/</span>{settings.footerAddress}</> : null}
+          </p>
+          {settings.footerContact ? <p className="footer-line footer-contact">{settings.footerContact}</p> : null}
+          <small className="footer-copyright">{settings.footerCopyright}</small>
+        </div>
+        <a className="footer-admin-link" href="/admin">관리자</a>
       </footer>
       <JoinDialog open={joinOpen} title={settings.joinButtonLabel} onClose={() => setJoinOpen(false)} />
       <DetailDialog item={selected} settings={settings} onClose={() => setSelected(null)} />
