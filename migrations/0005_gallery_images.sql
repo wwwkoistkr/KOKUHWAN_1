@@ -80,7 +80,12 @@ INSERT INTO content_items (type, title, summary, body, event_date, event_locatio
 INSERT INTO content_items (type, title, summary, body, event_date, event_location, attachment_url, image_url, published, sort_order, created_at, updated_at) VALUES ('resource', '포럼 행사 사진 (2016-09-30)', '동북아공동체ICT포럼 행사 사진 자료입니다.', '2016-09-30 개최된 포럼 행사 관련 사진 자료입니다.', '', '', '', '/uploads/gallery/0d86e4cacb0f.jpg', 1, -76, '2016-09-30 00:00:00', '2016-09-30 00:00:00');
 INSERT INTO content_items (type, title, summary, body, event_date, event_location, attachment_url, image_url, published, sort_order, created_at, updated_at) VALUES ('resource', '포럼 행사 사진 (2016-09-30)', '동북아공동체ICT포럼 행사 사진 자료입니다.', '2016-09-30 개최된 포럼 행사 관련 사진 자료입니다.', '', '', '', '/uploads/gallery/492962026346.jpg', 1, -77, '2016-09-30 00:00:00', '2016-09-30 00:00:00');
 
--- 갤러리 사진이 자료실 상위에 최신순으로 노출되도록 sort_order 재조정
+-- 갤러리 사진이 자료실 상위에 최신순으로 노출되도록 sort_order 재조정 (앱 허용 범위 900~999)
+WITH ranked AS (
+  SELECT id, ROW_NUMBER() OVER (ORDER BY created_at ASC) AS rn
+  FROM content_items
+  WHERE type=''resource'' AND image_url LIKE ''/uploads/gallery/%''
+)
 UPDATE content_items
-SET sort_order = 1000 + CAST(strftime('%s', created_at) / 86400 AS INTEGER)
-WHERE type='resource' AND image_url LIKE '/uploads/gallery/%';
+SET sort_order = 900 + (SELECT rn FROM ranked WHERE ranked.id = content_items.id)
+WHERE id IN (SELECT id FROM ranked);

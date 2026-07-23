@@ -175,7 +175,7 @@ function cleanContent(input: Partial<ContentItem>) {
     attachmentUrl: String(input.attachmentUrl ?? "").trim().slice(0, 1000),
     imageUrl: String(input.imageUrl ?? "").trim().slice(0, 1000),
     published: input.published === false ? 0 : 1,
-    sortOrder: Math.max(-9999, Math.min(9999, Number(input.sortOrder) || 0)),
+    sortOrder: Math.max(-99999, Math.min(99999, Number(input.sortOrder) || 0)),
   };
 }
 
